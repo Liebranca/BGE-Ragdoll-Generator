@@ -9,6 +9,13 @@ def createPhysBodyPart(arma_ref, bone, phys_mesh,
 
 	newPhys = bpy.data.objects.new(arma_ref.name+"_phys_"+bone.name,phys_mesh)
 	bpy.context.scene.objects.link(newPhys)
+	bpy.context.scene.objects.active = newPhys
+	
+	newPhys.data = newPhys.data.copy()
+	if newPhys.name in bpy.data.meshes:
+		bpy.data.meshes.remove(bpy.data.meshes[newPhys.name])
+
+	newPhys.data.name = newPhys.name
 
 	newPhys.location[1] = -bone.length
 	newPhys.scale = (bone.length/2,bone.length/1.25,bone.length/2)
@@ -16,11 +23,6 @@ def createPhysBodyPart(arma_ref, bone, phys_mesh,
 	newPhys.parent = arma_ref
 	newPhys.parent_bone = bone.name
 	newPhys.parent_type = "BONE"
-
-	#newPhys.modifiers.new("Subsurf", "SUBSURF")
-	newPhys.modifiers.new("Shrinkwrap", "SHRINKWRAP")
-
-	newPhys.modifiers["Shrinkwrap"].target = arma_ref.children[-1]
 
 	gameSet = newPhys.game
 	(gameSet.physics_type,gameSet.collision_bounds_type,
@@ -32,7 +34,7 @@ def createPhysBodyPart(arma_ref, bone, phys_mesh,
 	if doConst:
 		const = newPhys.constraints.new(type='RIGID_BODY_JOINT')
 		const.name = bone.name
-		const.show_pivot,const.use_linked_collision = True,True
+		const.show_pivot = const.use_linked_collision = True
 		const.pivot_type = "BALL"
 
 		subconst = newPhys.constraints.new(type='RIGID_BODY_JOINT')
@@ -51,12 +53,6 @@ def createPhysBodyPart(arma_ref, bone, phys_mesh,
 
 	newPhys.hide_render = True
 	newPhys.draw_type = "WIRE"
-	return newPhys
 
-def getIsBoneGroup(bone_name,bone_group):
-	for s in bone_group:
-		if s in bone_name:
-			return True
-	
-	return False
+	return newPhys
 	

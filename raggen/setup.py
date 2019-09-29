@@ -34,7 +34,7 @@ gameSettings=({
 
 	"friction": 0.5,
 	"elasticity": 0.0,
-	"collision_margin": 0.16,
+	"collision_margin": 0.04,
 	"radius": 1.0,
 	"damping": 0.04
 	})
@@ -117,8 +117,10 @@ def run():
 			if key in limits: constLimits = limits[key]
 			else: constLimits = None
 
-			phys_dict[bone.name] = utils.createPhysBodyPart(arma_ref,
+			phys_dict[str(tuple([bone.name, key]))] = (
+			utils.createPhysBodyPart(arma_ref,
 			bone, phys_mesh, doConst, gameSettings, constLimits, doInvert)
+			)
 
 	bpy.context.scene.update()
 
@@ -163,46 +165,40 @@ def run():
 	newProp = arma_ref.game.properties["ragdoll_physGroup"]
 	newProp.value = arma_ref.name+"_physBody"
 
-	for key in phys_dict:
-		phys = phys_dict[key]
-		bone = self.bones[key]
-		bone_pose = arma_pose[key]
+	for t in phys_dict:
+		phys = phys_dict[t]
+		name, key  = eval(t)
+		bone = self.bones[name]
+		bone_pose = arma_pose[name]
 
 		matrixcopy = phys.matrix_world.copy()
 		phys.parent = None
 		phys.matrix_world = matrixcopy
 		bpy.context.scene.objects.active = phys
 
-		if len(phys.constraints) != 0:
-			const = phys.constraints[0]
-			subconst = phys.constraints[-1]
+		in_spine_group = key in spine_group
+		in_arm_group = key in arm_group
+		in_leg_group = key in leg_group
 
-			try:
-				subconst.target = const.target = phys_dict[bone.parent.name]
-			except:
-				print("PHYS(%s): target not found"%(const.name))
+		if in_leg_group:
+			phys.game.mass = .65				
+			phys.scale = (
+				phys.scale[0]/2,phys.scale[1],phys.scale[2]/2)
 
-			checkName = const.name.lower()
-			
-			in_spine_group = utils.getIsBoneGroup(checkName,spine_group)
-			in_arm_group = utils.getIsBoneGroup(checkName,arm_group)
-			in_leg_group = utils.getIsBoneGroup(checkName,leg_group)
+		elif in_spine_group:
+			phys.game.mass = .8
+			phys.scale = (
+				phys.scale[0]*2,phys.scale[1],phys.scale[2]*2)
 
-			if in_leg_group:
-				phys.game.mass = .65				
-				phys.scale = (phys.scale[0]/2,phys.scale[1],phys.scale[2]/2)
+		elif in_arm_group:
+			phys.game.mass = .25
+			phys.scale = (
+				phys.scale[0]*1.1,phys.scale[1]/1.2,phys.scale[2]/1.1)
 
-			elif in_spine_group:
-				phys.game.mass = .8
-				phys.scale = (phys.scale[0]*2,phys.scale[1],phys.scale[2]*2)
-
-			elif in_arm_group:
-				phys.game.mass = .25
-				phys.scale = (phys.scale[0]*1.1,phys.scale[1]/1.2,phys.scale[2]/1.1)
-
-		if "root" in phys.name.lower():
+		elif key == "pelvis":
 			phys.game.mass = 1.0
-			phys.scale = (phys.scale[0]*2,phys.scale[1],phys.scale[2]*2)
+			bone_pose = arma_ref.pose.bones[bone.name]
+			phys.scale = (phys.scale[0]*5,phys.scale[1],phys.scale[2]*2)
 			if phys.name+"_limit_distance" not in bone_pose.constraints:
 				const = bone_pose.constraints.new(type='LIMIT_DISTANCE')
 				const.name = phys.name+"_limit_distance"
@@ -213,6 +209,28 @@ def run():
 
 			bpy.ops.object.game_property_new(type='BOOL', name='physRoot')
 
+
+		#subsf = phys.modifiers.new("Subsf", "SUBSURF")
+		#wrap = phys.modifiers.new("ShWrap", "SHRINKWRAP")
+
+		#subsf.subdivision_type = "SIMPLE"
+		#wrap.target = arma_ref.children[-1]
+		#wrap.use_keep_above_surface = True
+		#wrap.offset = 0.025
+
+		#bpy.ops.object.modifier_apply(modifier="Subsf")
+		#bpy.ops.object.modifier_apply(modifier="ShWrap")
+		
+
+		if len(phys.constraints) != 0:
+			const = phys.constraints[0]
+			subconst = phys.constraints[-1]
+
+			try:
+				target = arma_ref.name+"_phys_"+bone.parent.name
+				subconst.target = const.target = bpy.data.objects[target]
+			except:
+				print("PHYS(%s): target not found"%(const.name))
 		
 		if (arma_ref.name+"_physBody") not in bpy.data.groups:
 			bpy.data.groups.new(arma_ref.name+"_physBody")
@@ -222,12 +240,12 @@ def run():
 		bpy.ops.object.game_property_new(type='STRING', name='bone')
 		bpy.ops.object.game_property_new(type='STRING', name='constraint')
 		phys_boneProp = phys.game.properties["bone"]
-		phys_boneProp.value = key
+		phys_boneProp.value = name
 		phys_constProp = phys.game.properties["constraint"]
 		phys_constProp.value = phys.name
 
-		if arma_pose[key].is_in_ik_chain:
-			for constraint in arma_pose[key].constraints:
+		if arma_pose[name].is_in_ik_chain:
+			for constraint in arma_pose[name].constraints:
 				if constraint.type == "IK":
 
 					newPhys = utils.createPhysBodyPart(arma_ref,
@@ -244,7 +262,7 @@ def run():
 					ik_pose = arma_pose[constraint.subtarget]
 
 					bpy.ops.object.game_property_new(type='BOOL', name='_IK')
-					constraint.name = key+"_IK"
+					constraint.name = name+"_IK"
 
 					if phys.name+"_IK_distance" not in ik_pose.constraints:
 						const = ik_pose.constraints.new(type='LIMIT_DISTANCE')

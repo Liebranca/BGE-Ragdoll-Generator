@@ -91,11 +91,11 @@ def trackBone(own):
 
 	if armature["ragdoll_toggle"]:
 		getdown = influence_step*max(1, dfac)
-		own["timer"] += getdown+(0.1*timerMult)*getTimeScale()
+		own["timer"] += (getdown+(0.1*timerMult))*getTimeScale()
 		if const.active == 0:
-			own.worldPosition = (bone.pose_head)+master.worldPosition
 			own.worldOrientation = (own["origin_rot"]
-			+ Vector(bone.channel_matrix.to_euler()))
+			+ Vector(bone.channel_matrix.to_euler()) )
+
 			const.active = True
 
 		if not own["hasRigidBody"]:
@@ -281,7 +281,7 @@ def wipePhysicsBody(own):
 
 def spawnPhysicsBody(own):
 	own["yesBones"] = []
-	physBody = scene.addObject(own["ragdoll_physGroup"], own)
+	physBody = scene.addObject(own["ragdoll_physGroup"], own.parent)
 	for phys in physBody.groupMembers:
 		if "noBone" not in phys:
 			own["yesBones"].append(phys)
